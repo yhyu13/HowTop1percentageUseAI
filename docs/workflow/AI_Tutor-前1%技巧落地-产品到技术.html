@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI_Tutor（狸爱学 PBL）如何用"前 1%"AI 技巧：从产品到技术</title>
+<style>
+:root{--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--bg:#fff;--accent:#0969da;--code:#f6f8fa}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f8fa;color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:860px;margin:0 auto;background:var(--bg);padding:20px 18px 60px;min-height:100vh}
+h1{font-size:1.5rem;line-height:1.35;border-bottom:2px solid var(--line);padding-bottom:.4em}
+h2{font-size:1.22rem;margin-top:1.8em;border-bottom:1px solid var(--line);padding-bottom:.25em}
+h3{font-size:1.05rem;margin-top:1.4em;color:#24292f}
+p,li{word-break:break-word}
+a{color:var(--accent);text-decoration:none}
+blockquote{margin:1em 0;padding:.6em 1em;border-left:4px solid #d0d7de;background:#f6f8fa;color:var(--muted);border-radius:0 6px 6px 0}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:#f6f8fa}
+tr:nth-child(even) td{background:#fcfdfe}
+strong{color:#0a0a0a}
+hr{border:none;border-top:1px solid var(--line);margin:2em 0}
+</style></head>
+<body><main>
+<h1 id="ai_tutor-pbl-1ai">AI_Tutor（狸爱学 PBL）如何用"前 1%"AI 技巧：从产品到技术</h1>
+<blockquote>
+<p>分析对象：<code>C:\Git-repo-AI\AI_Turtor</code>（主工程 <code>pbl/</code>，生产站 https://www.ailiaixue.com）
+分析基准：本仓库 <code>docs/research/00–05</code> 前 1% AI 用户调研（第一期）
+写作日期：2026-10-09</p>
+</blockquote>
+<h2 id="tldr">TL;DR</h2>
+<ol>
+<li><strong>你其实已经站在 top-1% 线上。</strong> <code>AGENTS.md</code> + <code>memory/</code> + <code>docs/agent-architecture.md</code>（7 角色流水线 + L1–L4 分级验证 + G1–G6 fail-closed 门禁）正是调研里「顶级用户把 AI 当系统经营」的工业级形态。真正的差距不在"用不用 AI"，而在<strong>产品侧的上下文工程与学习者建模</strong>。</li>
+<li><strong>三处最大的技术缺口</strong>：① AI 对话每轮加载<strong>全部历史</strong>，只有一句"请简短"的伪压缩；② 号称"AI 评估"的 <code>evidence-analyzer.ts</code> 其实是<strong>正则关键词</strong>；③ <code>knowledgeMastery</code> 是 ±0.03 的规则加减，<strong>不是知识追踪</strong>。这三处恰是前 1% 用法与普通用法的分水岭。</li>
+<li><strong>最大的产品机会</strong>：你的"苏格拉底式、不直接给答案"恰好命中 Anthropic 实证里<strong>唯一能让人用 AI 还变强</strong>的模式（概念提问型，平均 86 分）。把它变成<strong>可量化卖点（答案泄露率）</strong>，就是区别于豆包/通用聊天与 Khanmigo 的护城河。</li>
+<li><strong>对标 Khanmigo 的教训</strong>：没有 skill gating 的 tutor 不构成产品。你已经埋了 <code>KnowledgePoint.prerequisiteIds</code> 与 <code>knowledgeMastery</code>，只差把它们接成「前置达标才推荐/解锁」的门控 + 可视化掌握图谱。</li>
+<li><strong>上下文纪律 = 成本纪律</strong>：Karpathy 说 90% 的 AI 账单花在不需要的上下文上。你的 <code>lib/ai/prompts.ts</code> 单文件 <strong>66 KB</strong>、对话每轮全量历史，是成本与质量的双重风险——要压到"最小高信号 token 集"。</li>
+<li><strong>今天就能做的最高性价比动作</strong>：把 <code>docs/agent-architecture.md</code> 自己写的 §8「最小可用版本」落地（R1 Router 常驻 / R5 独立分级验证 / 打 tag 前 <code>bun run build</code> 门禁）——这三点覆盖了本项目历史上最贵的三次翻车（rc5 / #106 / #109）。</li>
+</ol>
+<hr />
+<h2 id="_1">一、项目现状快照（我实际读到的）</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>现状</th>
+<th>关键文件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>产品</td>
+<td>AI狸爱学·个人项目化学习系统；小学 3–5 年级 PBL，教师定主题 → AI 为每个学生定制项目 → AI 导师 6 阶段引导 → 过程评估 → 成长报告</td>
+<td><code>prd.md</code>、<code>docs/prd.md</code>、<code>docs/ai-roadmap.md</code></td>
+</tr>
+<tr>
+<td>技术</td>
+<td>Next.js 16 App Router 单体 + Prisma 6 + PostgreSQL 18 + Bun；AI 走 DeepSeek（OpenAI 兼容）经 Vercel AI SDK；TOS 上传；PM2 + Caddy；<code>schoolId</code> 租户隔离</td>
+<td><code>AGENTS.md</code>、<code>package.json</code>、<code>prisma/schema.prisma</code></td>
+</tr>
+<tr>
+<td>AI 资产</td>
+<td>学生导师对话 / 项目生成 / 策略层（SIPA）/ 证据分析 / 上下文构建</td>
+<td><code>app/api/ai/chat/route.ts</code>、<code>lib/ai/project-generator.ts</code>、<code>lib/ai/sipa.ts</code>、<code>lib/ai/evidence-analyzer.ts</code>、<code>lib/ai/{driving,mentor}-context.ts</code></td>
+</tr>
+<tr>
+<td>数据</td>
+<td><code>KnowledgePoint</code>（含 <code>prerequisiteIds</code> / <code>misconceptions</code>）、<code>StudentLearningProfile.knowledgeMastery</code>（知识点→0–1）、<code>LearningEvidence</code>、<code>Conversation</code>/<code>ChatMessage</code></td>
+<td><code>prisma/schema.prisma:317-413</code></td>
+</tr>
+<tr>
+<td>工程规范</td>
+<td>宪法 + 记忆 + 多 Agent 架构 + 分级验证 + 门禁</td>
+<td><code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>memory/core/*</code>、<code>docs/agent-architecture.md</code></td>
+</tr>
+<tr>
+<td>商业</td>
+<td>7 年财务模型：B2C 订阅 + B2B 学校 + 教师工具包，国际为主；目标 2033 IPO</td>
+<td><code>7-Year-Financial-Model.md</code>、<code>docs/price.md</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">二、关键判断：你已经领先的地方（别推倒重来）</h2>
+<p>对照调研结论，下面这几件事你<strong>已经做对了</strong>，应保留并在其上继续叠加：</p>
+<ol>
+<li><strong>规则文件即宪法</strong>：<code>AGENTS.md</code> 把路由、不可破坏约束、验证基线、服务器升级 SOP 全部钉死；<code>CLAUDE.md</code> 只做单点跳转——正是 Anthropic/Karpathy 倡导的"规则文件内核"。</li>
+<li><strong>记忆文件化</strong>：<code>memory/core/invariants.md</code>（不可漂移约束）+ <code>symptom-routing.md</code>（症状→文件，上百次 bug 沉淀）+ <code>workflows.md</code>——这是 Anthropic "agentic memory / structured note-taking" 的真实工程化。</li>
+<li><strong>多 Agent 分工与门禁</strong>：<code>docs/agent-architecture.md</code> 的 R1–R8 角色契约 + G1–G6 门禁 + fail-closed，质量高于绝大多数商业团队。它已明确指出"翻车从不是能力不够，而是缺一道机械门禁或一次真实环境验证"。</li>
+<li><strong>确定性优先</strong>：<code>sipa.ts</code> 用规则做问题类型/思考深度/情绪判定，<code>knowledgeMastery</code> 用确定性 delta——在 LLM 不稳定处用规则兜底，是正确架构取向（不是缺陷）。</li>
+<li><strong>产品理念正确</strong>：苏格拉底式引导、按需学习、过程性评价、教师每周 &lt;10 分钟——产品方向与调研里"AI 教育必须带护栏 + 学习者建模"一致。</li>
+</ol>
+<p><strong>结论：你要的不是"引进 top-1% 技巧"，而是"把已知的正确原则在 AI 运行时补齐"。</strong></p>
+<hr />
+<h2 id="1-tutor">三、产品侧：把前 1% 技巧落到 tutor 上</h2>
+<h3 id="31">3.1 上下文工程就是产品力（不只是技术）</h3>
+<p>调研结论：顶级应用的竞争力是"用最小的高信号 token 集合换取最大概率的正确行为"（Anthropic）。对你的产品，这意味着<strong>导师质量 = 喂给模型的那段上下文的质量</strong>。</p>
+<p>现状问题（我在 <code>app/api/ai/chat/route.ts</code> 读到）：
+- 每轮 <code>prisma.chatMessage.findMany(...)</code> <strong>把整段对话历史全量塞回</strong>，对话越长越慢越贵越"糊"；
+- <code>system: contextPrompt</code> 里拼接了巨大的 <code>prompts.ts</code>（66 KB 级别的阶段提示词）+ 上下文；
+- 所谓"长对话压缩"只是在中点插一句"请保持回复简短"——这是<strong>伪压缩</strong>，不减 token，也不保留关键信息。</p>
+<p><strong>改法（直接对应 Anthropic 三件套）：</strong>
+- <strong>Compaction（真压缩）</strong>：对话超过阈值时，把历史交给便宜模型总结成"已确认目标 / 已解决卡点 / 未解决卡点 / 关键决定"，用摘要替换旧历史，只保留最近 N 轮原文。
+- <strong>结构化笔记（Agentic Memory）</strong>：给每个学生-项目维护一份<strong>学习笔记块</strong>（见 4.2），每轮只注入这份精简状态，而不是原始历史。
+- <strong>子 Agent</strong>：把"生成 / 导师 / 评估 / 摘要"拆成独立上下文（见 4.5）。</p>
+<h3 id="32">3.2 学习者建模：从"标签"升级到"知识追踪 + 门控"</h3>
+<p>调研结论（方向 8）：技术路线已收敛为 <strong>RAG（内容限定）+ 知识追踪（BKT/DKT）+ 苏格拉底策略 + skill gating</strong>；Khanmigo 被论文批评"无技能门槛"。</p>
+<p>现状：<code>knowledgeMastery</code> 是 <code>Record&lt;knowledgePointId, number&gt;</code>，由 <code>evidence-analyzer</code> 的规则给出 ±0.03/0.04 的 delta——<strong>是热度表，不是掌握概率</strong>。</p>
+<p><strong>改法：</strong>
+- 升级为<strong>贝叶斯知识追踪（BKT）</strong>：<code>p(掌握)</code> 用 <code>learn/guess/slip</code> 三参数递推，而不是线性加减；有 <code>LearningEvidence</code> 作为观测序列，数据天然够用。
+- <strong>接上 <code>KnowledgePoint.prerequisiteIds</code> 做 skill gating</strong>：前置知识点未达标 → 不推送当前知识点，而是先补齐前置（这正是"诊断→选择模式→学习→验证→应用"闭环里的"诊断"）。
+- <strong>产品化</strong>：把掌握度做成<strong>学生可见的"掌握图谱"</strong>（绿/黄/红 + 前置路径），教师看板输出"全班知识点热力图"——这是通用聊天机器人永远给不了的东西，也是卖给学校的核心交付物。</p>
+<h3 id="33">3.3 反退化设计 = 差异化卖点（可量化）</h3>
+<p>调研结论（方向 7）：把任务整包交给 AI 的开发者<strong>技能退化最重（调试能力）</strong>；而"概念提问型"（只问概念、自己动手）平均 86 分且速度不慢。<strong>AI 当解释器，不当答案生成器。</strong></p>
+<p>你的产品理念已经对了，缺的是<strong>把它变成可测量、可展示的证据</strong>：</p>
+<ul>
+<li>新增运行时指标 <strong>「答案泄露率」</strong>：AI 回复中是否直接给出了本应由学生产出的答案/成果（用轻量分类器或规则+LLM 判断）。</li>
+<li>新增 <strong>「认知参与度」</strong>：学生的追问密度、独立产出占比、卡点自解率。</li>
+<li>把这两个指标放进<strong>成长报告与学校汇报</strong>——"我们不让孩子把思考外包给 AI"，这是面对家长/学校最有力的合规与价值叙事，也是与"免费豆包"的正面区隔。</li>
+</ul>
+<h3 id="34">3.4 项目生成与评估的"去黑箱"</h3>
+<ul>
+<li>项目生成（<code>lib/ai/project-generator.ts</code>）是产品核心（"为每个学生定制"），应纳入<strong>提示词资产化 + 回归测试</strong>（见 4.6），否则质量不可控、无法 A/B。</li>
+<li>评估（<code>lib/ai/evidence-analyzer.ts</code>）目前是<strong>纯正则</strong>，与"AI 评估"的产品叙事不符，且无法识别真正的误解（<code>KnowledgePoint.misconceptions</code> 字段没被利用）。改法见 4.3。</li>
+</ul>
+<h3 id="35">3.5 分发与信任：一人公司的真相</h3>
+<p>调研结论（方向 2）：模型不是护城河，<strong>分发、信任、垂直数据才是</strong>；红利窗口以月计（seeu.food 三个月被卷死）。</p>
+<p>对你的 B2B2C 学校生意：
+- 真正稀缺的是<strong>教师信任与转介绍</strong>，不是功能数量。把"教师每周 &lt;10 分钟 + 一键出报告"做成可传播的样板（公开课、示范校、教师社群）。
+- 你的<strong>作品广场（<code>/plaza</code>、<code>/showcase</code>）本身就是增长回路</strong>——学生作品可分享、可互评，是天然的获客与留存资产，应在 roadmap 里提升优先级（研究里金浩斌靠平台免费曝光零买量）。
+- 金融模型假设了陡峭增长曲线（Year1 2400 学生 → Year7 200 万），但调研反复证明<strong>增长瓶颈在渠道不在产品</strong>；建议财务模型对"学校采购周期 6–12 个月"给更保守的 bear case 权重。</p>
+<hr />
+<h2 id="top-1-roadmap">四、技术侧：把 top-1% 做法映射到具体文件（对着你的 roadmap）</h2>
+<p>下表每行都可直接变成 issue 的验收口径。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>现状</th>
+<th>前 1% 做法</th>
+<th>触碰文件</th>
+<th>验收口径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>每轮全量加载对话历史；伪压缩（插一句"请简短"）</td>
+<td>真 Compaction：摘要旧轮 + 保留最近 N 轮</td>
+<td><code>app/api/ai/chat/route.ts</code>、<code>Conversation</code>（加 <code>summary</code> 字段）</td>
+<td>单对话 P95 输入 token 降 ≥50%，且不丢"已解决卡点/未解决卡点"</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>上下文靠长字符串拼接</td>
+<td>结构化上下文构建 + token 预算</td>
+<td><code>lib/ai/mentor-context.ts</code>、新增 <code>lib/ai/context-builder.ts</code></td>
+<td>每段上下文有独立 token 上限；超预算按优先级裁剪</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>掌握度 = 规则 ±0.03 加减</td>
+<td>贝叶斯知识追踪（BKT），用 <code>LearningEvidence</code> 递推</td>
+<td><code>lib/actions/learning-evidence.ts</code>、新增 <code>lib/ai/knowledge-tracing.ts</code></td>
+<td>掌握度有可解释参数（learn/guess/slip）；单测覆盖收敛</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>无 skill gating；<code>prerequisiteIds</code> 未用</td>
+<td>前置知识点达标才推荐/解锁；掌握图谱可视化</td>
+<td><code>lib/curriculum.ts</code>（或新模块）、学生端知识点页、教师看板</td>
+<td>未达标前置时不出当前知识点；图谱可读</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>评估是正则关键词</td>
+<td>轻量 LLM 结构化评估（误解/证据/情绪），规则兜底</td>
+<td><code>lib/ai/evidence-analyzer.ts</code>、<code>lib/ai/prompts*.ts</code></td>
+<td>输出稳定 JSON schema；规则层作为 fallback 与门禁</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>单一大 chat agent</td>
+<td>拆 生成/导师/评估/摘要 四类子 Agent，各自干净上下文</td>
+<td><code>lib/ai/*</code>、<code>app/api/ai/*</code></td>
+<td>每个 Agent 有独立 system prompt 与输入契约；互不污染</td>
+</tr>
+<tr>
+<td>T7</td>
+<td><code>prompts.ts</code> 66 KB + <code>prompts_0.ts</code> + <code>.backup</code></td>
+<td>提示词版本化 + 黄金用例回归 + A/B</td>
+<td><code>lib/ai/prompts*/</code></td>
+<td>有 <code>prompts/vX</code> 结构；CI 跑提示词回归</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>单一 DeepSeek 模型</td>
+<td>模型分层：分类/摘要走便宜档，导师走强档；开缓存</td>
+<td><code>.env.example</code>、AI client</td>
+<td>成本面板按学生/项目可见；单价有目标</td>
+</tr>
+<tr>
+<td>T9</td>
+<td>Dev 门禁成熟，但"AI 质量"无门禁</td>
+<td>加 G7：答案泄露率 / 幻觉率 / 输出格式 门禁</td>
+<td><code>docs/agent-architecture.md</code>、<code>test/</code></td>
+<td>提示词变更必须过 G7 才合并</td>
+</tr>
+</tbody>
+</table>
+<h3 id="41-compactiont1">4.1 真 Compaction（T1）——性价比最高的一处</h3>
+<p>现在每轮把全部 <code>ChatMessage</code> 塞回模型。改法：
+- <code>Conversation</code> 增加 <code>summary String?</code> 与 <code>summarizedUpTo</code>（记录已压缩到的消息序号）。
+- 触发条件：历史 token 超阈值（比如 &gt; N 轮或 &gt; X token）。
+- 压缩提示词产出<strong>固定四段</strong>：<code>已确认目标 / 已解决卡点 / 未解决卡点 / 关键决定</code>（对应 Anthropic 保留"架构决策 / 未解决 bug / 实现细节"，丢弃冗余工具输出）。
+- 注入时 = <code>summary</code> + 最近 N 轮原文。<strong>不要</strong>再插"请简短"。
+- 收尾（<code>sipa.converge</code>）那一轮仍走全量，因为要写完整成果摘要。</p>
+<h3 id="42-t2">4.2 结构化记忆：给每个学生-项目一份"学习笔记"（T2）</h3>
+<p>参照 Anthropic "structured note-taking"（NOTES.md 模式）：每轮只注入一份精简状态，而不是原始历史。建议形态（存在 <code>Conversation.summary</code> 或新增 <code>ProjectLearningNote</code>）：</p>
+<pre><code>[学习笔记]
+- 当前里程碑：第3阶段 · 设计问卷
+- 已掌握（≥0.7）：变量控制(0.82)、数据记录(0.74)
+- 薄弱（&lt;0.4）：抽样方法(0.31) ← 前置&quot;总体与样本&quot;未达标，先补
+- 兴趣/偏好：恐龙、喜欢画图
+- 未解决卡点：不知道怎么让问题&quot;可测量&quot;
+- 最近决定：问卷先做 5 题小样本
+</code></pre>
+<p>这份笔记既是<strong>给模型的上下文</strong>，也是<strong>给教师看板的摘要</strong>——一份数据两处复用。</p>
+<h3 id="43-t5">4.3 评估去正则化（T5）</h3>
+<p><code>evidence-analyzer.ts</code> 现在是关键词匹配（<code>/不会|不懂|卡住/</code> 等）。保留它作为<strong>确定性门禁与兜底</strong>，但主路径换成<strong>便宜模型的结构化输出</strong>：
+- 输入：学生消息 + AI 回复 + 当前知识点（含 <code>misconceptions</code>）。
+- 输出（强 schema）：<code>{ sentiment, blockerLevel, misconceptionIds[], masteryEvidence[], abilityTags[], suggestedLearningMode }</code>。
+- 只有 LLM 失败/超时才回落到正则。
+- 好处：能真正利用 <code>KnowledgePoint.misconceptions</code>，把"错误诊断"做实（roadmap 第四阶段想要的能力）。</p>
+<h3 id="44-bkt-skill-gatingt3t4">4.4 BKT 与 skill gating（T3/T4）</h3>
+<ul>
+<li>新建 <code>lib/ai/knowledge-tracing.ts</code>：对每个 <code>knowledgePointId</code> 维护 <code>{ pKnown, learn, guess, slip }</code>，用 <code>LearningEvidence</code> 序列递推；初始 <code>pKnown=0.5</code> 与现在默认一致，可灰度对比。</li>
+<li>gating 规则：只有 <code>prerequisiteIds</code> 全部 <code>pKnown ≥ 阈值</code>（如 0.6）才把该知识点纳入推荐与练习；否则先补前置。</li>
+<li>教师看板按 <code>subject × gradeLevel</code> 聚合出热力图（<code>KnowledgePoint</code> 已有 <code>@@index([schoolId, subject])</code>）。</li>
+</ul>
+<h3 id="45-agent-t6">4.5 子 Agent 拆分（T6）</h3>
+<p>对齐 Anthropic「主 Agent 只做计划与综合，子 Agent 用独立上下文深挖后回传摘要」：</p>
+<pre><code>项目生成 Agent ──▶ 产出 planSnapshot（已有 project-generator.ts）
+导师 Agent     ──▶ 对话（已有 chat/route.ts，需瘦身）
+评估 Agent     ──▶ 结构化证据（改造 evidence-analyzer.ts）
+摘要 Agent     ──▶ 对话压缩 + 阶段总结（新增）
+报告 Agent     ──▶ 成长叙事（已有 report-generator.ts）
+</code></pre>
+<p>关键纪律：<strong>每个 Agent 有独立 system prompt 与输入契约，不共享一段巨型 prompt</strong>。这也是解决 <code>prompts.ts</code> 66 KB 膨胀的解法。</p>
+<h3 id="46-t7">4.6 提示词资产化 + 回归测试（T7）</h3>
+<ul>
+<li>拆分为 <code>lib/ai/prompts/&lt;agent&gt;/&lt;name&gt;.v1.ts</code>（或 JSON），带版本号；删除 <code>prompts_0.ts</code> 与 <code>.backup</code>。</li>
+<li>建<strong>黄金用例集</strong>（<code>test/ai-golden/</code>）：典型学生输入 → 期望行为（不泄露答案、语气适配年级、识别指定误解）。提示词变更必须跑回归。</li>
+<li>这与你的 <code>AGENTS.md</code>「写测试 → 实现 → CI 绿」循环天然契合，只是把测试对象从代码扩到提示词。</li>
+</ul>
+<h3 id="47-t8">4.7 模型分层与成本（T8）</h3>
+<ul>
+<li>分类/摘要/情绪 → 便宜档（Haiku 级）；导师对话 → 强档（Sonnet 级）。</li>
+<li>开启 prompt caching（Claude）复用稳定前缀（阶段提示词 + 项目上下文）。</li>
+<li><code>usage-tracking</code> 落到每学生/每项目面板（roadmap 第六阶段已有），并设日上限。</li>
+<li><strong>成本纪律来自上下文纪律</strong>：先做 T1/T2，成本自然下来。</li>
+</ul>
+<h3 id="48-dev-ai-t9">4.8 把 Dev 门禁延伸到"AI 质量门禁"（T9）</h3>
+<p>你已有 G1–G6（代码层）。新增 <strong>G7</strong>：
+- 提示词变更 → 必须过黄金用例；
+- 上线前抽检<strong>答案泄露率</strong>（AI 是否越界直接给答案）；
+- 输出格式合规（JSON schema 失败率）。</p>
+<p>这样"AI 用对没有"也变成机械门禁，而不是靠人感觉——完全符合 <code>docs/agent-architecture.md</code> 的哲学：<strong>"翻车从不是能力不够，而是缺一道机械门禁"</strong>。</p>
+<hr />
+<h2 id="30-60-90">五、30 / 60 / 90 天行动</h2>
+<p><strong>第 1–2 周（低成本、高确定性）</strong>
+1. 落地 <code>docs/agent-architecture.md</code> §8 最小版：R1 Router 常驻、R5 独立分级验证、打 tag 前 <code>bun run build</code>（G3）。
+2. T1 真 Compaction（先上线，作为对话质量的立竿见影改进）。
+3. 建 <code>test/ai-golden/</code> 骨架 + 一个"不泄露答案"用例。</p>
+<p><strong>第 3–6 周</strong>
+4. T2 结构化上下文 + 学习笔记块（同时在教师看板复用）。
+5. T5 评估去正则化（LLM 结构化 + 规则兜底）。
+6. T7 提示词拆分与版本化，删除历史备份文件。</p>
+<p><strong>第 7–12 周</strong>
+7. T3 BKT + T4 skill gating + 掌握图谱（学生端 + 教师热力图）。
+8. T6 子 Agent 拆分（摘要 Agent 先落地）。
+9. T9 G7 AI 质量门禁 + 答案泄露率指标进成长报告。</p>
+<hr />
+<h2 id="_3">六、风险与红线</h2>
+<ul>
+<li><strong>别让"提升 AI"破坏确定性</strong>：<code>sipa.ts</code> 的规则层是资产，不是债务。LLM 只加在它之上，不替换它。</li>
+<li><strong>隐私与合规</strong>：学生画像、对话日志属敏感数据；引入 LLM 评估时保持 <code>schoolId</code> 租户隔离与脱敏（roadmap 第六阶段已列）。</li>
+<li><strong>成本失控</strong>：任何"多 Agent / 长上下文"改动都必须先有 token 预算与上限，否则正面撞上 Karpathy 说的"90% 浪费"。</li>
+<li><strong>K12 红线</strong>：产品是儿童场景，AI 输出需内容审核；苏格拉底式护栏既是教育理念也是安全边界，不要为了"体验流畅"而放松。</li>
+<li><strong>验证分级</strong>：凡涉及真实时间/网络/设备的改动（TTS、上传、外部域名），必须到 L4 真实环境验证——这是你 #116、#109 两次翻车的直接教训。</li>
+</ul>
+<hr />
+<h2 id="_4">七、来源</h2>
+<p><strong>项目内文件</strong>：<code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>AI_PLAYBOOK.md</code>、<code>prd.md</code>、<code>docs/ai-roadmap.md</code>、<code>docs/agent-architecture.md</code>、<code>docs/status-summary.md</code>、<code>7-Year-Financial-Model.md</code>、<code>app/api/ai/chat/route.ts</code>、<code>lib/ai/{mentor-context,evidence-analyzer,project-generator,sipa}.ts</code>、<code>prisma/schema.prisma</code></p>
+<p><strong>调研依据</strong>（本仓库）：
+- <code>docs/research/00-总览与方法论.md</code>（十点发现 + 来源清单）
+- <code>docs/research/01-顶级用户习惯与工作流.md</code>（上下文工程 / 规则文件 / 子 Agent / 反退化六模式）
+- <code>docs/research/05-AI教育tutor创业情报.md</code>（Khanmigo skill gating 教训 / BKT 技术路线 / 市场机会）
+- <code>docs/workflow/首批可落地行动清单.md</code></p>
+<p><strong>外部一手来源（关键几条）</strong>：Anthropic《Effective context engineering for AI agents》、Anthropic《AI assistance and coding skills》、Karpathy 四准则、墨刀 AI PRD 教程、Khanmigo 横评、Duolingo AI 上调指引。完整 URL 见 <code>docs/research/00-总览与方法论.md</code> 来源清单。</p>
+</main></body></html>
