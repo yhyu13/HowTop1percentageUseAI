@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI_Tutor 成为 1%：产品 × 技术双路线图（含个人成长与对 CEO 的汇报打法）</title>
+<style>
+:root{--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--bg:#fff;--accent:#0969da;--code:#f6f8fa}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f8fa;color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:860px;margin:0 auto;background:var(--bg);padding:20px 18px 60px;min-height:100vh}
+h1{font-size:1.5rem;line-height:1.35;border-bottom:2px solid var(--line);padding-bottom:.4em}
+h2{font-size:1.22rem;margin-top:1.8em;border-bottom:1px solid var(--line);padding-bottom:.25em}
+h3{font-size:1.05rem;margin-top:1.4em;color:#24292f}
+p,li{word-break:break-word}
+a{color:var(--accent);text-decoration:none}
+blockquote{margin:1em 0;padding:.6em 1em;border-left:4px solid #d0d7de;background:#f6f8fa;color:var(--muted);border-radius:0 6px 6px 0}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:#f6f8fa}
+tr:nth-child(even) td{background:#fcfdfe}
+strong{color:#0a0a0a}
+hr{border:none;border-top:1px solid var(--line);margin:2em 0}
+</style></head>
+<body><main>
+<h1 id="ai_tutor-1-ceo">AI_Tutor 成为 1%：产品 × 技术双路线图（含个人成长与对 CEO 的汇报打法）</h1>
+<blockquote>
+<p>对象：<code>C:\Git-repo-AI\AI_Turtor</code>（主工程 <code>pbl/</code>，生产 https://www.ailiaixue.com）
+前置：本仓库 <code>docs/workflow/AI_Tutor-前1%技巧落地-产品到技术.md</code>（commit f0b5182）
+写作日期：2026-10-09</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 先回答你的三个问题</h2>
+<p><strong>① 之前说到哪里了？</strong>
+第一轮做了 8 方向调研（前 1% AI 用户习惯）；第二轮把它桥接到这个项目，结论是：<strong>你的工程规范已是 top-1% 水准</strong>（<code>AGENTS.md</code> 宪法 + <code>memory/</code> 记忆 + <code>docs/agent-architecture.md</code> 七角色 + L1–L4 分级 + G1–G6 门禁），但<strong>产品运行时的 AI 还停在"普通用法"</strong>——三处硬 gap：全量对话历史无压缩、<code>evidence-analyzer.ts</code> 是正则不是 AI 评估、<code>knowledgeMastery</code> 是规则加减不是知识追踪。</p>
+<p><strong>② 该应用哪些？</strong>
+把 top-1% 用法拆成"已具备 / 待补"两张清单（见 §1）。</p>
+<p><strong>③ 怎么算"变成 1%"？</strong>
+不是"用上更多 AI 功能"，而是<strong>同时满足三层</strong>（见 §2）：你作为使用者的系统化、产品作为教育引擎的学习者建模、组织作为可复制机器的度量与分发。</p>
+<hr />
+<h2 id="1-top-1">1. top-1% 技巧清单：已具备 / 待补</h2>
+<table>
+<thead>
+<tr>
+<th>技巧（调研结论）</th>
+<th>你的项目</th>
+<th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>规则文件即宪法（CLAUDE.md/AGENTS.md）</td>
+<td><code>AGENTS.md</code> 钉死路由/约束/验证/SOP</td>
+<td>✅ 已具备</td>
+</tr>
+<tr>
+<td>结构化记忆（agentic memory）</td>
+<td><code>memory/core/{invariants,symptom-routing,workflows}</code></td>
+<td>✅ 已具备</td>
+</tr>
+<tr>
+<td>子 Agent 委派 + 独立上下文</td>
+<td>有 project-generator / chat / report，但<strong>未成体系</strong></td>
+<td>🟡 半具备</td>
+</tr>
+<tr>
+<td>多 Agent 质量门禁</td>
+<td>G1–G6 代码门禁强；<strong>AI 质量无门禁</strong></td>
+<td>🟡 半具备</td>
+</tr>
+<tr>
+<td>上下文工程（最小高信号 token）</td>
+<td><strong>全量历史、66KB prompt、伪压缩</strong></td>
+<td>❌ 待补</td>
+</tr>
+<tr>
+<td>真 Compaction</td>
+<td>无（只插一句"请简短"）</td>
+<td>❌ 待补</td>
+</tr>
+<tr>
+<td>学习者建模 / 知识追踪</td>
+<td><code>knowledgeMastery</code> 存在但是规则加减</td>
+<td>🟡 半具备</td>
+</tr>
+<tr>
+<td>skill gating</td>
+<td><code>prerequisiteIds</code> 存在但未用</td>
+<td>❌ 待补</td>
+</tr>
+<tr>
+<td>反退化设计（AI 当解释器不当答案）</td>
+<td>产品理念已对，<strong>但不可度量</strong></td>
+<td>🟡 半具备</td>
+</tr>
+<tr>
+<td>提示词资产化 + 回归评估</td>
+<td>66KB 单文件 + <code>prompts_0.ts</code> + <code>.backup</code></td>
+<td>❌ 待补</td>
+</tr>
+<tr>
+<td>分发优先（护城河在分发不在模型）</td>
+<td>作品广场雏形，未当增长引擎</td>
+<td>🟡 半具备</td>
+</tr>
+<tr>
+<td>真实环境验证（L4）</td>
+<td>有分级规则，但 #116/#109 说明执行不到位</td>
+<td>🟡 半具备</td>
+</tr>
+</tbody>
+</table>
+<p><strong>读法：不要新增能力，先把 6 个 ❌ 补上——它们全是"把已知原则在 AI 运行时补齐"。</strong></p>
+<hr />
+<h2 id="2-1-ceo">2. "1%" 的三层定义（这是你和 CEO 对话的统一语言）</h2>
+<p><strong>第一层 · 使用者维度：把 AI 当系统经营。</strong>
+标志：规则文件 + 记忆 + 子 Agent + 定时任务 + 资产库。→ 你已达标，这是你的"技术信誉"。</p>
+<p><strong>第二层 · 产品维度：教育引擎而非聊天外壳。</strong>
+标志：<strong>学习者模型（知识追踪 + skill gating）+ 苏格拉底护栏（反退化）+ 可量化学习增益 + 一键交付教师/家长报告</strong>。→ 当前缺前两项的工程化。这是"1% 教育产品"与"99% AI 聊天套壳"的分界线（Khanmigo 的教训：没有 skill gating 就不是产品）。</p>
+<p><strong>第三层 · 组织维度：可度量、可复制、可分发的机器。</strong>
+标志：北极星指标 + 单位经济 + 分发回路 + 合规底线。→ 当前是 7 年财务模型 + 单体产品，缺"可展示的增长引擎"。</p>
+<p><strong>一句话对 CEO：我们不是在做"AI 版作业工具"，我们在把 Bloom 2-Sigma（一对一辅导超越 98% 课堂）用 AI 变成可规模化的产品。</strong></p>
+<hr />
+<h2 id="3">3. 战略诊断：楔子、护城河、不做什么</h2>
+<h3 id="31">3.1 机会（调研支撑）</h3>
+<ul>
+<li><code>AI+教育</code>被指近万亿市场、千亿级赛道（21 世纪经济报道 / 财联社）；Duolingo 靠 AI 上调全年收入指引、股价单日 +30%→ 需求与商业化被验证。</li>
+<li>全球理论把手：<strong>Bloom 2-Sigma</strong>；世界银行尼日利亚 GPT-4 课后辅导实验报告大幅学习增益。</li>
+<li>国内大厂火力集中在 K12 应试与学习机硬件；<strong>"小学 + 项目式学习 + 教师零负担"是稀疏带</strong>。</li>
+</ul>
+<h3 id="32-wedge">3.2 楔子（Wedge：从哪一点切入）</h3>
+<blockquote>
+<p><strong>"教师输入一个主题，AI 为每个学生生成专属项目，并在 6 节课里把孩子从'要答案'引导成'会探究'。"</strong></p>
+</blockquote>
+<p>这是别人没有的组合：Khanmigo 绑课程、Duolingo 单一学科、豆包只会给答案、学习机是题库+硬件。你的楔子 = <strong>个性化项目生成 + 苏格拉底引导 + 教师 10 分钟</strong>。</p>
+<h3 id="33">3.3 护城河（凭什么别人打不进来）</h3>
+<ol>
+<li><strong>学习者模型</strong>：知识追踪 + 掌握图谱 + 前置门控 → 数据越用越准（通用聊天给不了）。</li>
+<li><strong>反退化的品牌</strong>：可量化的"答案泄露率"与"探究能力成长"→ 家长/学校的信任资产。</li>
+<li><strong>学校信任与转介绍</strong>：B2B 的护城河是渠道与口碑，不是代码。</li>
+<li><strong>作品广场的增长回路</strong>：学生作品可分享互评 = 天然的病毒循环。</li>
+</ol>
+<h3 id="34">3.4 反模式（明确不做）</h3>
+<ul>
+<li>❌ 拼功能数量（通用聊天免费碾压）。</li>
+<li>❌ 用"更聪明的模型"解释一切（模型不是护城河，Karpathy：90% 的 AI 账单是浪费的上下文）。</li>
+<li>❌ 先做全学科全年级（质量方差会毁掉口碑，先做一个窄楔子的极致）。</li>
+<li>❌ 把体验判断当技术决策（你 <code>docs/agent-architecture.md</code> 已总结这类返工）。</li>
+</ul>
+<hr />
+<h2 id="4-ceo">4. 产品路线图（让 CEO 眼睛一亮的三步）</h2>
+<p><strong>叙事主线：从"生成项目的工具"升级为"可度量的因材施教引擎"。</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>产品动作</th>
+<th>可展示物（Demo）</th>
+<th>目标指标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1（0–4 周）<strong>把 AI 用对</strong></td>
+<td>真压缩 + 结构化学习笔记 + 评估去正则</td>
+<td>同一段对话，改造前后对比：输入 token ↓50%，卡点识别准确率 ↑</td>
+<td>答案泄露率、单对话成本</td>
+</tr>
+<tr>
+<td>P2（5–10 周）<strong>把学习做成资产</strong></td>
+<td>知识追踪（BKT）+ skill gating + 掌握图谱</td>
+<td>学生"掌握图谱"页 + 教师全班热力图</td>
+<td>人均掌握知识点增量</td>
+</tr>
+<tr>
+<td>P3（11–16 周）<strong>把增长接上</strong></td>
+<td>作品广场当增长回路 + 成长报告叙事化 + 试点校样板</td>
+<td>一所示范校的完整案例（数据 + 家长反馈）</td>
+<td>续费率 / 转介绍数</td>
+</tr>
+</tbody>
+</table>
+<p><strong>北极星指标</strong>：每学生每周"新增学习证据 + 掌握知识点增量"（过程性、抗刷分）。
+<strong>护栏指标</strong>：答案泄露率（越低越好）、AI 成本/学生/月、教师周耗时（&lt;10 分钟）。
+<strong>商业要点</strong>：单位经济先跑通（单生月 token 成本 vs 客单价）；毛利路径对齐你 7 年模型（59.5%→92%），但增长假设按调研<strong>下调</strong>——瓶颈在分发不在产品。</p>
+<hr />
+<h2 id="5-file-level-t1t9">5. 技术路线图（file-level，承接上一份的 T1–T9）</h2>
+<p><strong>总原则</strong>：不新增能力，先把"已知正确原则"在 AI 运行时补齐；每步都有机械验收。</p>
+<pre><code>阶段一（2 周，低风险高确定性）
+  T1 真 Compaction  → app/api/ai/chat/route.ts + Conversation.summary
+  G3 build 门禁     → 打 tag 前 bun run build（rc5 教训）
+  G7 AI 质量门禁雏形 → test/ai-golden/（一个&quot;不泄露答案&quot;用例）
+
+阶段二（4 周，把 AI 做对）
+  T2 结构化上下文    → lib/ai/mentor-context.ts + 新增 context-builder.ts
+  T5 评估去正则      → lib/ai/evidence-analyzer.ts（LLM 结构化 + 规则兜底）
+  T7 提示词资产化    → 拆 lib/ai/prompts/*，删 prompts_0.ts / .backup
+
+阶段三（6 周，把学习做成资产）
+  T3 BKT            → 新增 lib/ai/knowledge-tracing.ts + learning-evidence.ts
+  T4 skill gating   → lib/curriculum.ts（接 KnowledgePoint.prerequisiteIds）
+  T6 子 Agent 拆分   → 摘要 Agent 先落地，四类 Agent 各带独立 prompt
+  T8/T9 模型分层+成本面板 → 便宜档管分类/摘要，强档管导师
+</code></pre>
+<p><strong>架构目标图</strong></p>
+<pre><code>                 ┌──────── 你（产品判断 / 质量 / 分发）────────┐
+                 │  定楔子 · 定指标 · 验收 AI 产出 · 谈渠道     │
+                 └───────┬───────────────┬───────────────┬────┘
+                         │               │               │
+              项目生成 Agent      导师 Agent        评估/摘要/报告 Agent
+              (planSnapshot)     (苏格拉底)        (证据→BKT→掌握图谱)
+                         └────────── 共用底座 ──────────┘
+              CLAUDE.md/AGENTS.md 宪法 · memory 记忆 · prompts 资产库 · G1–G7 门禁
+</code></pre>
+<p><strong>立刻可做的一件"零风险高价值"事</strong>：把 <code>docs/agent-architecture.md</code> 提交进版本库（它现在是 untracked），并按它自己的 §8 落地三件事——R1 Router 常驻 / R5 独立分级验证 / 打 tag 前 build 门禁。</p>
+<hr />
+<h2 id="6-5">6. 个人指导：你要补的 5 项能力（针对你的背景）</h2>
+<p>你是<strong>游戏开发者 + 科创</strong>，这条路其实顺得惊人——很多能力可直接迁移：</p>
+<table>
+<thead>
+<tr>
+<th>游戏开发能力</th>
+<th>迁移到本项目的能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Playtesting / 手感调优</td>
+<td><strong>Eval / 黄金用例 / AI 质量门禁</strong></td>
+</tr>
+<tr>
+<td>玩法循环设计</td>
+<td><strong>学习闭环与参与度设计</strong></td>
+</tr>
+<tr>
+<td>关卡设计</td>
+<td><strong>课程与里程碑设计（curriculum）</strong></td>
+</tr>
+<tr>
+<td>生产管线（asset pipeline）</td>
+<td><strong>多 Agent 生产线 + 提示词资产库</strong></td>
+</tr>
+<tr>
+<td>性能预算（帧预算）</td>
+<td><strong>上下文/token 预算</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>要补的 5 项能力：</strong>
+1. <strong>上下文工程</strong>（最高优先）：读懂 Anthropic 那篇 + 亲手把 T1/T2 做一遍。这是你和普通"调 prompt 的人"拉开差距的地方。
+2. <strong>评估与度量（Eval）</strong>：把"AI 好不好"变成可回归测试的数字。这是你游戏 QA 思维的直接迁移，也是 CEO 最买账的"证据"。
+3. <strong>学习者建模基础</strong>：BKT/IRT 的思想（会查表+会实现最小版即可，不必读论文）。
+4. <strong>单位经济与财务语言</strong>：读懂你那份 7 年模型，能自己算"单生 token 成本 / 客单价 / 毛利 / CAC"。CEO 用这个语言思考。
+5. <strong>分发/GTM</strong>：调研反复证明增长瓶颈在分发。练"示范校样板 + 教师社群 + 作品广场"的增长回路。</p>
+<p><strong>每周操作系统（建议 time-box）：</strong>
+- 周一 30min：定本周 1 个可验收的技术改动（对应 T1–T9 之一）。
+- 周三 60min：读一手材料（Anthropic 博客 / 论文 / 竞品）并写 5 行笔记进 <code>memory/</code>。
+- 周五 60min：跑 eval + 更新指标面板；写下"这周学到的一条 invariants/symptom"。
+- 周末 60min：对外输出（一篇短文/一个 demo），喂养分发回路。</p>
+<hr />
+<h2 id="7-ceo-imprint">7. 对 CEO 的汇报打法（imprint 的关键）</h2>
+<h3 id="ceo">CEO 关心三件事，按这个顺序讲</h3>
+<ol>
+<li><strong>市场与机会</strong>（这门生意多大、为什么是现在）。</li>
+<li><strong>我们凭什么赢</strong>（楔子 + 护城河，而不是功能清单）。</li>
+<li><strong>你要什么</strong>（资源/决策/时间，以及你会交付什么数字）。</li>
+</ol>
+<h3 id="6-pager">一页纸结构（先写这一页，再扩成 6-pager）</h3>
+<pre><code>标题：把 1:1 辅导变成可规模化产品（Bloom 2-Sigma × AI）
+1. 问题：因材施教做不起（1:1 辅导贵到无法规模化）
+2. 洞察：LLM 让 1:1 边际成本趋零；但通用聊天会让孩子把思考外包（技能退化）
+3. 方案：教师定主题 → AI 生成专属项目 → 苏格拉底导师（不直接给答案）→ 掌握图谱 → 报告
+4. 证据：本地已跑通 X 校/Y 学生；答案泄露率 Z%；人均掌握知识点 +N
+5. 护城河：学习者模型 + 反退化品牌 + 学校信任 + 作品广场增长回路
+6. 单位经济：单生成本 / 客单价 / 毛利 / CAC（含 bear case）
+7. 请求：资源 A、决策 B、下一步 C（带时间点）
+</code></pre>
+<h3 id="_1">三个能立刻加分的"信任动作"</h3>
+<ol>
+<li><strong>主动认领一个指标并动它</strong>：比如"答案泄露率从 X 降到 Y"，用数据说话。</li>
+<li><strong>带去风险路径</strong>：灰度 → 试点 → 全校 → 多校 + 合规意见（CEO 最怕不可控）。</li>
+<li><strong>展示机械门禁</strong>：给他看 G1–G7 与"打 tag 前必过 build"——说明你<strong>不靠运气交付</strong>。</li>
+</ol>
+<h3 id="_2">要避免的坑</h3>
+<ul>
+<li>别用功能清单代替价值主张（"我又加了 5 个功能" 是工程师语言）。</li>
+<li>别把技术复杂度当卖点（CEO 只关心结果与风险）。</li>
+<li>别在还没数据时谈规模化（先拿一个样板校的硬数据）。</li>
+<li>别承诺自己控不了的事（增长/渠道/合规要单独列风险）。</li>
+</ul>
+<hr />
+<h2 id="8-90">8. 90 天执行表</h2>
+<table>
+<thead>
+<tr>
+<th>周</th>
+<th>技术（你主导）</th>
+<th>产品/商业</th>
+<th>对外交付</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–2</td>
+<td>T1 真压缩 + G3/G7 门禁 + 提交 agent-architecture</td>
+<td>定北极星与护栏指标</td>
+<td>一页纸 + 6-pager 初稿</td>
+</tr>
+<tr>
+<td>3–4</td>
+<td>T2 结构化上下文 + 学习笔记块</td>
+<td>指标面板上线</td>
+<td>给 CEO 第一次汇报（带改造前后对比）</td>
+</tr>
+<tr>
+<td>5–6</td>
+<td>T5 评估去正则（LLM + 规则兜底）</td>
+<td>试点校沟通</td>
+<td>卡点识别准确率数据</td>
+</tr>
+<tr>
+<td>7–8</td>
+<td>T7 提示词资产化 + eval 回归</td>
+<td>作品广场增长回路设计</td>
+<td>一份示范班级案例</td>
+</tr>
+<tr>
+<td>9–10</td>
+<td>T3 BKT 最小版</td>
+<td>掌握图谱 UI 设计</td>
+<td>掌握度数据</td>
+</tr>
+<tr>
+<td>11–12</td>
+<td>T4 skill gating + T6/T8</td>
+<td>单位经济模型校准（bear case）</td>
+<td>演示校样板 + 汇报二</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 一页纸总结</h2>
+<blockquote>
+<p><strong>你不是"不够会 AI"，而是"产品运行时的 AI 还停在普通用法"。</strong>
+把三处 gap（无压缩 / 正则评估 / 规则掌握度）补上，把学习者模型与反退化做成<strong>可度量的护城河</strong>，再用 CEO 的语言（市场→护城河→单位经济→风险→请求）讲一遍——
+你手上就从一个"AI 教育工具"，变成了一台<strong>可规模化的因材施教引擎</strong>。这就是这个赛道的 1%。</p>
+</blockquote>
+<p><strong>来源</strong>：本仓库 <code>docs/research/00–05</code>、<code>docs/workflow/{首批可落地行动清单, AI_Tutor-前1%技巧落地-产品到技术}.md</code>；项目内 <code>prd.md</code>、<code>docs/ai-roadmap.md</code>、<code>docs/agent-architecture.md</code>、<code>7-Year-Financial-Model.md</code>、<code>app/api/ai/chat/route.ts</code>、<code>lib/ai/*</code>、<code>prisma/schema.prisma</code>。</p>
+</main></body></html>
